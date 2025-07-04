@@ -5,6 +5,7 @@ import { AuthProvider } from './context/AuthContext';
 import AuthLayout from './layouts/AuthLayout';
 import DashboardLayout from './layouts/DashboardLayout';
 import Login from './pages/auth/Login';
+import ForgotPassword from './pages/auth/ForgotPassword';
 import Dashboard from './pages/dashboard/Dashboard';
 import Users from './pages/users/Users';
 import Tasks from './pages/tasks/Tasks';
@@ -26,6 +27,10 @@ function App() {
         {
           index: true,
           element: <Login />,
+        },
+        {
+          path: 'forgot-password',
+          element: <ForgotPassword />,
         },
       ],
     },

@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import axios from 'axios';
 
 interface User {
   id: string;
@@ -10,72 +11,65 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
+  token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string, otp: string) => Promise<void>;
+  login: (email: string, password: string, otp: string, secretKey?: string, onSuccess?: () => void) => Promise<void>;
   logout: () => void;
-  requestOtp: (email: string, password: string) => Promise<void>;
+  setUser: (user: User | null) => void;
 }
+const API_URL = import.meta.env.VITE_API_URL;
+//const API_URL = "https://africa-south1-longo-79a99.cloudfunctions.net/api/api/admin";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  
-  const isAuthenticated = !!user;
 
-  const requestOtp = async (email: string, password: string) => {
-    setIsLoading(true);
-    try {
-      // Mock credential verification
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // In a real app, verify credentials first
-      if (password !== 'admin123') {
-        throw new Error('Invalid credentials');
-      }
-      
-      console.log(`OTP requested for ${email}`);
-    } catch (error) {
-      console.error('Failed to request OTP:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
+  // Restore user and token from sessionStorage on mount
+  useEffect(() => {
+    const storedUser = sessionStorage.getItem('longo_user');
+    const storedToken = sessionStorage.getItem('longo_token');
+    if (storedUser && storedToken) {
+      setUser(JSON.parse(storedUser));
+      setToken(storedToken);
     }
-  };
+  }, []);
 
-  const login = async (email: string, password: string, otp: string) => {
+  const isAuthenticated = !!user && !!token;
+
+  // Login with credentials and 2FA
+  const login = async (email: string, password: string, otp: string, secretKey?: string, onSuccess?: () => void) => {
     setIsLoading(true);
     try {
-      // Mock API call to verify credentials and OTP
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Mock OTP verification (in real app, verify with backend)
-      if (otp !== '123456') {
-        throw new Error('Invalid OTP');
+      // Step 1: Login with credentials
+      const loginRes = await axios.post(`${API_URL}/admin-login`, { email, password });
+      const twoFAEnabled = loginRes.data.details?.two_fa_enabled;
+      let finalToken = null;
+      let userData = null;
+      if (twoFAEnabled) {
+        // Step 2: Verify 2FA
+        const verifyRes = await axios.post(`${API_URL}/verify-otp`, { email , token: otp});
+        if (!verifyRes.data.success) {
+          throw new Error('Invalid 2FA code');
+        }
+        finalToken = verifyRes.data.token;
+        userData = verifyRes.data.user;
+      } else {
+        // If 2FA not enabled, trigger setup (handled in UI, not here)
+        throw new Error('2FA setup required.');
       }
-      
-      // Mock user data based on email
-      let role: 'SuperAdmin' | 'Admin' | 'Support' = 'Admin';
-      
-      if (email.includes('super')) {
-        role = 'SuperAdmin';
-      } else if (email.includes('support')) {
-        role = 'Support';
+      if (!finalToken || !userData) {
+        throw new Error('Login failed: missing token or user data');
       }
-      
-      const mockUser: User = {
-        id: '1',
-        name: email.split('@')[0],
-        email,
-        role,
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
-      };
-      
-      setUser(mockUser);
-    } catch (error) {
-      console.error('Login failed:', error);
+      setUser(userData);
+      setToken(finalToken);
+      sessionStorage.setItem('longo_user', JSON.stringify(userData));
+      sessionStorage.setItem('longo_token', finalToken);
+      if (onSuccess) onSuccess();
+    } catch (error: any) {
       throw error;
     } finally {
       setIsLoading(false);
@@ -84,16 +78,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setUser(null);
+    setToken(null);
+    sessionStorage.removeItem('longo_user');
+    sessionStorage.removeItem('longo_token');
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      isAuthenticated, 
-      isLoading, 
-      login, 
+    <AuthContext.Provider value={{
+      user,
+      token,
+      isAuthenticated,
+      isLoading,
+      login,
       logout,
-      requestOtp
+      setUser,
     }}>
       {children}
     </AuthContext.Provider>

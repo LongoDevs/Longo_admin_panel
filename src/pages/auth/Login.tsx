@@ -3,12 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { Mail, Lock, AlertCircle, ArrowRight, Eye, EyeOff } from 'lucide-react';
-
+import { Mail, Lock, AlertCircle, ArrowRight, Eye, EyeOff, Copy } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 const API_URL = import.meta.env.VITE_API_URL;
+//const API_URL = 'https://africa-south1-longo-79a99.cloudfunctions.net/api/api/admin';
+
 
 export default function Login() {
   const navigate = useNavigate();
+  const { setUser, login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
@@ -31,7 +34,8 @@ export default function Login() {
     try {
       // Call backend to login and check 2FA status
       const res = await axios.post(`${API_URL}/admin-login`, { email, password });
-      if (res.data.two_fa_enabled) {
+      console.log("Testing response",res.data)
+      if (res.data.details.two_fa_enabled) {
         setStep('2fa-verify');
         toast.success('2FA enabled. Please enter your code.');
       } else {
@@ -86,20 +90,31 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      const res = await axios.post(`${API_URL}/service/twofa/verifyOtp`, {
-        email,
-        code: otp,
-      });
-      if (res.data.success) {
+      await login(email, password, otp, secretKey, () => {
         toast.success('Login successful!');
         navigate('/admin');
-      } else {
-        setError('Invalid verification code.');
-      }
+      });
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to verify code.');
     } finally {
       setLoading(false);
+    }
+  };
+
+ 
+  const copySecretKey = async () => {
+    try {
+      await navigator.clipboard.writeText(secretKey);
+      toast.success('Secret key copied to clipboard!');
+    } catch (err) {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = secretKey;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      toast.success('Secret key copied to clipboard!');
     }
   };
 
@@ -224,7 +239,19 @@ export default function Login() {
                     />
                   )}
                   <p className="text-gray-300 mb-2">Or enter this secret key manually:</p>
-                  <div className="bg-gray-800 text-white p-2 rounded mb-2 inline-block">{secretKey}</div>
+                  <div className="flex items-center justify-center space-x-2 mb-4">
+                    <div className="bg-gray-800 text-white p-2 rounded inline-block font-mono text-sm max-w-xs truncate">
+                      {secretKey}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={copySecretKey}
+                      className="inline-flex items-center px-3 py-2 border border-gray-600 rounded-md text-sm font-medium text-gray-200 bg-gray-700 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-yellow"
+                      title="Copy secret key"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label htmlFor="otp" className="block text-sm font-medium text-gray-300 mb-1">
@@ -315,7 +342,14 @@ export default function Login() {
         </div>
       </div>
       
-     
+      <div className="mt-6 text-center">
+        <button
+          onClick={() => navigate('/forgot-password')}
+          className="text-sm text-brand-yellow hover:text-yellow-400 hover:underline"
+        >
+          Forgot Password?
+        </button>
+      </div>
     </motion.div>
   );
 }
