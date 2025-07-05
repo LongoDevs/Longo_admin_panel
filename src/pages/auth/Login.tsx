@@ -5,8 +5,8 @@ import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { Mail, Lock, AlertCircle, ArrowRight, Eye, EyeOff, Copy } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-const API_URL = import.meta.env.VITE_API_URL;
-//const API_URL = 'https://africa-south1-longo-79a99.cloudfunctions.net/api/api/admin';
+//const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = 'https://africa-south1-longo-79a99.cloudfunctions.net/api/api/admin';
 
 
 export default function Login() {
@@ -83,23 +83,29 @@ export default function Login() {
   // Handle 2FA verification
   const handle2faVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
+
     if (!otp) {
-      setError('Verification code is required');
+      setError("Verification code is required");
       return;
     }
+
     setLoading(true);
     try {
-      await login(email, password, otp, secretKey, () => {
-        toast.success('Login successful!');
-        navigate('/admin');
-      });
+      const success = await login(email, password, otp);
+      console.log("Success", success)
+      if (!success) {
+        setError("Invalid credentials or 2FA code.");
+        return;
+      }
+      navigate("/admin")
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to verify code.');
+      setError(err?.response?.data?.message || "Login failed.");
     } finally {
       setLoading(false);
     }
   };
+  
 
  
   const copySecretKey = async () => {

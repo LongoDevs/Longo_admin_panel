@@ -21,6 +21,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
+import api from '../../context/axiosinterceptor';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -72,13 +73,18 @@ export default function Users() {
 
   useEffect(() => {
     setLoading(true);
-    axios.get(`${API_URL}/all-service-providers`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(res => setProviders(Array.isArray(res.data.data) ? res.data.data : []))
-      .catch(() => setError('Failed to fetch service providers'))
-      .finally(() => setLoading(false));
-  }, [token]);
+    api.get('/all-service-providers')
+      .then(res => {
+        setProviders(Array.isArray(res.data.data) ? res.data.data : []);
+      })
+      .catch(() => {
+        setError('Failed to fetch service providers');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+  
 
   // Filter providers based on search term and status
   const filteredData = providers.filter(provider => {

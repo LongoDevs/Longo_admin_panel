@@ -18,6 +18,7 @@ import Profile from './pages/profile/Profile';
 import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
+
 function App() {
   const router = createBrowserRouter([
     {
