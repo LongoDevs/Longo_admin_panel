@@ -16,11 +16,13 @@ import {
   Mail,
   User,
   Shield,
-  Briefcase
+  Briefcase,
+  Eye
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
+import api from '../../context/axiosinterceptor';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -72,13 +74,18 @@ export default function Users() {
 
   useEffect(() => {
     setLoading(true);
-    axios.get(`${API_URL}/all-service-providers`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(res => setProviders(Array.isArray(res.data.data) ? res.data.data : []))
-      .catch(() => setError('Failed to fetch service providers'))
-      .finally(() => setLoading(false));
-  }, [token]);
+    api.get('/all-service-providers')
+      .then(res => {
+        setProviders(Array.isArray(res.data.data) ? res.data.data : []);
+      })
+      .catch(() => {
+        setError('Failed to fetch service providers');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+  
 
   // Filter providers based on search term and status
   const filteredData = providers.filter(provider => {
@@ -344,21 +351,17 @@ export default function Users() {
                         <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-gray-700 ring-1 ring-black ring-opacity-5 z-10">
                           <div className="py-1" role="menu" aria-orientation="vertical">
                             <button
-                              onClick={() => changeProviderStatus(provider._id, provider.status === 'Suspended' ? 'Active' : 'Suspended')}
+                              onClick={() => {
+                                navigate(`/admin/users/${provider._id}`);
+                                setShowDropdown(null);
+                              }}
                               className="w-full text-left block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600"
                               role="menuitem"
                             >
-                              {provider.status === 'Suspended' ? (
-                                <div className="flex items-center">
-                                  <UserCheck className="h-4 w-4 mr-2 text-green-400" />
-                                  Reactivate Provider
-                                </div>
-                              ) : (
-                                <div className="flex items-center">
-                                  <UserX className="h-4 w-4 mr-2 text-red-400" />
-                                  Suspend Provider
-                                </div>
-                              )}
+                              <div className="flex items-center">
+                                <Eye className="h-4 w-4 mr-2 text-brand-yellow" />
+                                View Profile
+                              </div>
                             </button>
                             <button
                               onClick={() => deleteProvider(provider._id)}
@@ -367,7 +370,7 @@ export default function Users() {
                             >
                               <div className="flex items-center">
                                 <Trash2 className="h-4 w-4 mr-2 text-red-400" />
-                                Delete Provider
+                                Delete Service Provider
                               </div>
                             </button>
                           </div>
